@@ -252,7 +252,7 @@ export default function Home() {
                 { key: 'security', label: 'Security', icon: '🔒' },
                 { key: 'content', label: 'Content', icon: '📝' }
               ].map((category) => {
-                const data = analysisResult.results[category.key as keyof typeof analysisResult.results];
+                const data = analysisResult.results?.[category.key as keyof typeof analysisResult.results];
                 const score = data?.score || 0;
                 return (
                   <div key={category.key} className="bg-white rounded-lg shadow-lg p-6">
