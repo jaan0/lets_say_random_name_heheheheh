@@ -21,10 +21,7 @@
     "lucide-react": "0.294.0",
     "react-hot-toast": "2.4.1",
     "cheerio": "^1.0.0-rc.12",
-    "lighthouse": "^11.4.0",
-    "puppeteer": "^21.6.1",
     "jspdf": "^2.5.1",
-    "html2canvas": "^1.4.1",
     "@supabase/supabase-js": "^2.38.4",
     "js-cookie": "^3.0.5"
   },
