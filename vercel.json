@@ -15,8 +15,16 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "src": "/api/analyze",
+      "dest": "/api/analyze"
+    },
+    {
+      "src": "/api/analysis/(.*)",
+      "dest": "/api/analysis/$1"
+    },
+    {
+      "src": "/api/download/(.*)",
+      "dest": "/api/download/$1"
     },
     {
       "src": "/(.*)",

@@ -22,8 +22,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory storage for analysis results (in production, use a database)
-analysis_results = {}
+# File-based storage for analysis results (in production, use a database)
+import json
+
+def get_analysis_results():
+    """Get analysis results from file storage"""
+    import tempfile
+    storage_path = os.path.join(tempfile.gettempdir(), 'analysis_results.json')
+    try:
+        with open(storage_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+def save_analysis_results(results):
+    """Save analysis results to file storage"""
+    import tempfile
+    storage_path = os.path.join(tempfile.gettempdir(), 'analysis_results.json')
+    with open(storage_path, 'w') as f:
+        json.dump(results, f)
+
+def get_analysis_result(analysis_id):
+    """Get a specific analysis result"""
+    results = get_analysis_results()
+    return results.get(analysis_id)
+
+def save_analysis_result(analysis_id, result):
+    """Save a specific analysis result"""
+    results = get_analysis_results()
+    results[analysis_id] = result
+    save_analysis_results(results)
 
 class AnalysisRequest(BaseModel):
     url: HttpUrl
@@ -42,87 +70,49 @@ async def root():
 async def api_root():
     return {"message": "Website Analyzer API is running!"}
 
-@app.post("/api/analyze", response_model=AnalysisResponse)
-async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundTasks):
-    """Start website analysis in background"""
-    analysis_id = str(uuid.uuid4())
-    
-    # Initialize analysis result
-    analysis_results[analysis_id] = {
-        "id": analysis_id,
-        "url": str(request.url),
-        "status": "started",
-        "started_at": datetime.now().isoformat(),
-        "progress": 0,
-        "results": None,
-        "error": None
-    }
-    
-    # Start background analysis
-    background_tasks.add_task(run_analysis, analysis_id, str(request.url), request.options)
-    
-    return AnalysisResponse(
-        analysis_id=analysis_id,
-        status="started",
-        message="Analysis started successfully"
-    )
-
-@app.get("/api/analysis/{analysis_id}")
-async def get_analysis_status(analysis_id: str):
-    """Get analysis status and results"""
-    if analysis_id not in analysis_results:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-    
-    return analysis_results[analysis_id]
-
-@app.get("/api/download/{analysis_id}")
-async def download_report(analysis_id: str):
-    """Download PDF report"""
-    if analysis_id not in analysis_results:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-    
-    result = analysis_results[analysis_id]
-    if result["status"] != "completed":
-        raise HTTPException(status_code=400, detail="Analysis not completed yet")
-    
-    pdf_path = f"reports/{analysis_id}.pdf"
-    if not os.path.exists(pdf_path):
-        raise HTTPException(status_code=404, detail="Report file not found")
-    
-    return FileResponse(
-        path=pdf_path,
-        filename=f"website_analysis_{analysis_id[:8]}.pdf",
-        media_type="application/pdf"
-    )
+# Endpoints are now handled by individual serverless functions
 
 async def run_analysis(analysis_id: str, url: str, options: dict):
     """Run the complete website analysis"""
     try:
-        # Update status
-        analysis_results[analysis_id]["status"] = "analyzing"
-        analysis_results[analysis_id]["progress"] = 10
+        # Get current result and update status
+        result = get_analysis_result(analysis_id)
+        if result:
+            result["status"] = "analyzing"
+            result["progress"] = 10
+            save_analysis_result(analysis_id, result)
         
         # Initialize analyzer
         analyzer = WebsiteAnalyzer()
         
         # Run analysis steps
-        analysis_results[analysis_id]["progress"] = 20
+        if result:
+            result["progress"] = 20
+            save_analysis_result(analysis_id, result)
         performance_data = await analyzer.analyze_performance(url)
         
-        analysis_results[analysis_id]["progress"] = 40
+        if result:
+            result["progress"] = 40
+            save_analysis_result(analysis_id, result)
         accessibility_data = await analyzer.analyze_accessibility(url)
         
-        analysis_results[analysis_id]["progress"] = 60
+        if result:
+            result["progress"] = 60
+            save_analysis_result(analysis_id, result)
         seo_data = await analyzer.analyze_seo(url)
         
-        analysis_results[analysis_id]["progress"] = 80
+        if result:
+            result["progress"] = 80
+            save_analysis_result(analysis_id, result)
         security_data = await analyzer.analyze_security(url)
         
-        analysis_results[analysis_id]["progress"] = 90
+        if result:
+            result["progress"] = 90
+            save_analysis_result(analysis_id, result)
         content_data = await analyzer.analyze_content(url)
         
         # Compile results
-        results = {
+        analysis_results_data = {
             "url": url,
             "analyzed_at": datetime.now().isoformat(),
             "performance": performance_data,
@@ -133,20 +123,27 @@ async def run_analysis(analysis_id: str, url: str, options: dict):
             "overall_score": calculate_overall_score(performance_data, accessibility_data, seo_data, security_data, content_data)
         }
         
-        analysis_results[analysis_id]["results"] = results
-        analysis_results[analysis_id]["progress"] = 95
+        if result:
+            result["results"] = analysis_results_data
+            result["progress"] = 95
+            save_analysis_result(analysis_id, result)
         
         # Generate PDF report
         report_generator = PDFReportGenerator()
-        pdf_path = await report_generator.generate_report(results, analysis_id)
+        pdf_path = await report_generator.generate_report(analysis_results_data, analysis_id)
         
-        analysis_results[analysis_id]["status"] = "completed"
-        analysis_results[analysis_id]["progress"] = 100
-        analysis_results[analysis_id]["pdf_path"] = pdf_path
+        if result:
+            result["status"] = "completed"
+            result["progress"] = 100
+            result["pdf_path"] = pdf_path
+            save_analysis_result(analysis_id, result)
         
     except Exception as e:
-        analysis_results[analysis_id]["status"] = "failed"
-        analysis_results[analysis_id]["error"] = str(e)
+        result = get_analysis_result(analysis_id)
+        if result:
+            result["status"] = "failed"
+            result["error"] = str(e)
+            save_analysis_result(analysis_id, result)
         print(f"Analysis failed for {analysis_id}: {e}")
 
 def calculate_overall_score(performance, accessibility, seo, security, content):
