@@ -43,6 +43,7 @@ export default async function handler(req, res) {
         email: req.body.email || null,
         contact: req.body.contact || null
       });
+      console.log('User tracked successfully:', user?.id);
     } catch (error) {
       console.log('User tracking failed (optional):', error.message);
     }
@@ -65,6 +66,7 @@ export default async function handler(req, res) {
     // Track analysis in Supabase (optional)
     try {
       await userTracker.trackAnalysis(analysisId, url, user?.id, req);
+      console.log('Analysis tracked successfully in database');
     } catch (error) {
       console.log('Analysis tracking failed (optional):', error.message);
     }
@@ -125,6 +127,7 @@ export default async function handler(req, res) {
       // Update analysis in Supabase with results (optional)
       try {
         await userTracker.updateAnalysis(analysisId, results, pdfBase64);
+        console.log('Analysis results updated in database');
       } catch (error) {
         console.log('Analysis update failed (optional):', error.message);
       }
