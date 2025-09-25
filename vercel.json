@@ -2,40 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/**/*.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
-    },
-    {
       "src": "package.json",
       "use": "@vercel/next"
     }
   ],
   "routes": [
     {
-      "src": "/api/test",
-      "dest": "/api/test"
-    },
-    {
-      "src": "/api/analyze",
-      "dest": "/api/analyze"
-    },
-    {
-      "src": "/api/analysis/(.*)",
-      "dest": "/api/analysis/$1"
-    },
-    {
-      "src": "/api/download/(.*)",
-      "dest": "/api/download/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "/$1"
     }
-  ],
-  "env": {
-    "PYTHONPATH": "/var/task"
-  }
+  ]
 }
