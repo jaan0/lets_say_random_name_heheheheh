@@ -1,5 +1,4 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+import json
 import os
 
 # Import from parent directory
@@ -9,26 +8,44 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 # Import the shared functions from main.py
 from main import get_analysis_result
 
-app = FastAPI(title="Analysis Status API", version="1.0.0")
-
-# CORS middleware for frontend communication
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/")
-async def get_analysis_status(analysis_id: str):
-    """Get analysis status and results"""
-    result = get_analysis_result(analysis_id)
-    if not result:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-    
-    return result
-
-# Vercel serverless function handler
 def handler(request):
-    return app(request.scope, request.receive, request.send)
+    """Vercel serverless function handler"""
+    try:
+        # Extract analysis_id from the request path
+        # The path will be something like /api/analysis/12345
+        path_parts = request.path.split('/')
+        analysis_id = path_parts[-1] if path_parts else None
+        
+        if not analysis_id:
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": "Analysis ID is required"})
+            }
+        
+        # Get analysis result
+        result = get_analysis_result(analysis_id)
+        if not result:
+            return {
+                "statusCode": 404,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": "Analysis not found"})
+            }
+        
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
+            "body": json.dumps(result)
+        }
+        
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"error": str(e)})
+        }
