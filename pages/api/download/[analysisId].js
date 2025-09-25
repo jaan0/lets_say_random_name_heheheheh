@@ -41,10 +41,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Check if PDF file exists
-    const pdfPath = path.join(process.cwd(), 'api', 'reports', `${analysisId}.pdf`);
-    
-    if (!fs.existsSync(pdfPath)) {
+    // Check if PDF base64 data exists
+    if (!result.pdf_base64) {
       res.status(404).json({ error: 'Report file not found' });
       return;
     }
@@ -53,9 +51,9 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="website_analysis_${analysisId.slice(0, 8)}.pdf"`);
 
-    // Stream the file
-    const fileStream = fs.createReadStream(pdfPath);
-    fileStream.pipe(res);
+    // Convert base64 to buffer and send
+    const pdfBuffer = Buffer.from(result.pdf_base64.split(',')[1], 'base64');
+    res.send(pdfBuffer);
 
   } catch (error) {
     console.error('Error in download endpoint:', error);

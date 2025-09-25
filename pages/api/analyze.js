@@ -35,12 +35,17 @@ export default async function handler(req, res) {
     const analyzer = new WebsiteAnalyzer();
     const userTracker = new UserTracker();
 
-    // Track user and get user info
-    const user = await userTracker.trackUser(req, {
-      name: req.body.name || null,
-      email: req.body.email || null,
-      contact: req.body.contact || null
-    });
+    // Track user and get user info (optional)
+    let user = null;
+    try {
+      user = await userTracker.trackUser(req, {
+        name: req.body.name || null,
+        email: req.body.email || null,
+        contact: req.body.contact || null
+      });
+    } catch (error) {
+      console.log('User tracking failed (optional):', error.message);
+    }
 
     // Initialize analysis result
     const initialResult = {
@@ -54,9 +59,15 @@ export default async function handler(req, res) {
       user_id: user?.id || null
     };
 
-    // Save initial result to both local storage and Supabase
+    // Save initial result to local storage
     storage.saveAnalysisResult(analysisId, initialResult);
-    await userTracker.trackAnalysis(analysisId, url, user?.id, req);
+    
+    // Track analysis in Supabase (optional)
+    try {
+      await userTracker.trackAnalysis(analysisId, url, user?.id, req);
+    } catch (error) {
+      console.log('Analysis tracking failed (optional):', error.message);
+    }
 
     // Start analysis in background (simplified for serverless)
     try {
@@ -104,15 +115,19 @@ export default async function handler(req, res) {
 
       // Generate PDF report
       const reportGenerator = new PDFReportGenerator();
-      const pdfPath = reportGenerator.generateReport(results, analysisId);
+      const pdfBase64 = reportGenerator.generateReport(results, analysisId);
 
       initialResult.status = 'completed';
       initialResult.progress = 100;
-      initialResult.pdf_path = pdfPath;
+      initialResult.pdf_base64 = pdfBase64;
       storage.saveAnalysisResult(analysisId, initialResult);
 
-      // Update analysis in Supabase with results
-      await userTracker.updateAnalysis(analysisId, results, pdfPath);
+      // Update analysis in Supabase with results (optional)
+      try {
+        await userTracker.updateAnalysis(analysisId, results, pdfBase64);
+      } catch (error) {
+        console.log('Analysis update failed (optional):', error.message);
+      }
 
     } catch (analysisError) {
       // Update result with error
