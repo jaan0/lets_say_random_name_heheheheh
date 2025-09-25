@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Download, CheckCircle, AlertCircle, Clock, Globe } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import CookieConsent from '../components/CookieConsent';
 
 interface AnalysisResult {
   id: string;
@@ -23,6 +24,24 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [userInfo, setUserInfo] = useState({
+    name: '',
+    email: '',
+    contact: ''
+  });
+
+  // Track user on page load
+  useEffect(() => {
+    // Track page visit
+    if (typeof window !== 'undefined') {
+      // Send page view to analytics if cookies are accepted
+      const analyticsEnabled = document.cookie.includes('analytics-enabled=true');
+      if (analyticsEnabled) {
+        // You can add analytics tracking here
+        console.log('Page view tracked');
+      }
+    }
+  }, []);
 
   const startAnalysis = async () => {
     if (!url.trim()) {
@@ -48,7 +67,12 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ 
+          url,
+          name: userInfo.name,
+          email: userInfo.email,
+          contact: userInfo.contact
+        }),
       });
 
       const data = await response.json();
@@ -171,7 +195,36 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto space-y-6">
+            {/* User Information (Optional) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <input
+                type="text"
+                value={userInfo.name}
+                onChange={(e) => setUserInfo(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Your Name (Optional)"
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isAnalyzing}
+              />
+              <input
+                type="email"
+                value={userInfo.email}
+                onChange={(e) => setUserInfo(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="Email (Optional)"
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isAnalyzing}
+              />
+              <input
+                type="text"
+                value={userInfo.contact}
+                onChange={(e) => setUserInfo(prev => ({ ...prev, contact: e.target.value }))}
+                placeholder="Contact (Optional)"
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isAnalyzing}
+              />
+            </div>
+
+            {/* URL Input */}
             <div className="flex space-x-4">
               <div className="flex-1">
                 <input
@@ -335,6 +388,9 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Cookie Consent */}
+      <CookieConsent />
     </div>
   );
 }

@@ -1,4 +1,9 @@
-export default function handler(req, res) {
+import WebsiteAnalyzer from '../../lib/analyzer.js';
+import AnalysisStorage from '../../lib/storage.js';
+import PDFReportGenerator from '../../lib/reportGenerator.js';
+import UserTracker from '../../lib/userTracker.js';
+
+export default async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -26,10 +31,95 @@ export default function handler(req, res) {
 
     // Generate analysis ID
     const analysisId = crypto.randomUUID();
+    const storage = new AnalysisStorage();
+    const analyzer = new WebsiteAnalyzer();
+    const userTracker = new UserTracker();
 
-    // For now, return a simple response
-    // In a real implementation, you would save this to a database
-    // and trigger the analysis asynchronously
+    // Track user and get user info
+    const user = await userTracker.trackUser(req, {
+      name: req.body.name || null,
+      email: req.body.email || null,
+      contact: req.body.contact || null
+    });
+
+    // Initialize analysis result
+    const initialResult = {
+      id: analysisId,
+      url: url,
+      status: 'started',
+      started_at: new Date().toISOString(),
+      progress: 0,
+      results: null,
+      error: null,
+      user_id: user?.id || null
+    };
+
+    // Save initial result to both local storage and Supabase
+    storage.saveAnalysisResult(analysisId, initialResult);
+    await userTracker.trackAnalysis(analysisId, url, user?.id, req);
+
+    // Start analysis in background (simplified for serverless)
+    try {
+      // Update status to analyzing
+      initialResult.status = 'analyzing';
+      initialResult.progress = 10;
+      storage.saveAnalysisResult(analysisId, initialResult);
+
+      // Run analysis steps
+      initialResult.progress = 20;
+      storage.saveAnalysisResult(analysisId, initialResult);
+      const performanceData = await analyzer.analyzePerformance(url);
+
+      initialResult.progress = 40;
+      storage.saveAnalysisResult(analysisId, initialResult);
+      const accessibilityData = await analyzer.analyzeAccessibility(url);
+
+      initialResult.progress = 60;
+      storage.saveAnalysisResult(analysisId, initialResult);
+      const seoData = await analyzer.analyzeSEO(url);
+
+      initialResult.progress = 80;
+      storage.saveAnalysisResult(analysisId, initialResult);
+      const securityData = await analyzer.analyzeSecurity(url);
+
+      initialResult.progress = 90;
+      storage.saveAnalysisResult(analysisId, initialResult);
+      const contentData = await analyzer.analyzeContent(url);
+
+      // Compile results
+      const results = {
+        url: url,
+        analyzed_at: new Date().toISOString(),
+        performance: performanceData,
+        accessibility: accessibilityData,
+        seo: seoData,
+        security: securityData,
+        content: contentData,
+        overall_score: analyzer.calculateOverallScore(performanceData, accessibilityData, seoData, securityData, contentData)
+      };
+
+      initialResult.results = results;
+      initialResult.progress = 95;
+      storage.saveAnalysisResult(analysisId, initialResult);
+
+      // Generate PDF report
+      const reportGenerator = new PDFReportGenerator();
+      const pdfPath = reportGenerator.generateReport(results, analysisId);
+
+      initialResult.status = 'completed';
+      initialResult.progress = 100;
+      initialResult.pdf_path = pdfPath;
+      storage.saveAnalysisResult(analysisId, initialResult);
+
+      // Update analysis in Supabase with results
+      await userTracker.updateAnalysis(analysisId, results, pdfPath);
+
+    } catch (analysisError) {
+      // Update result with error
+      initialResult.status = 'failed';
+      initialResult.error = analysisError.message;
+      storage.saveAnalysisResult(analysisId, initialResult);
+    }
 
     res.status(200).json({
       analysis_id: analysisId,

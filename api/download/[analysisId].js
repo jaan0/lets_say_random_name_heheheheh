@@ -1,3 +1,6 @@
+import fs from 'fs';
+import AnalysisStorage from '../../../lib/storage.js';
+
 export default function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,13 +27,35 @@ export default function handler(req, res) {
       return;
     }
 
-    // For now, return a mock response
-    // In a real implementation, you would generate and return the actual PDF
-    res.status(200).json({
-      message: 'PDF download endpoint working',
-      analysis_id: analysisId,
-      note: 'This is a mock response. In production, this would return the actual PDF file.'
-    });
+    // Get analysis result from storage
+    const storage = new AnalysisStorage();
+    const result = storage.getAnalysisResult(analysisId);
+
+    if (!result) {
+      res.status(404).json({ error: 'Analysis not found' });
+      return;
+    }
+
+    if (result.status !== 'completed') {
+      res.status(400).json({ error: 'Analysis not completed yet' });
+      return;
+    }
+
+    // Check if PDF file exists
+    const pdfPath = `/tmp/reports/${analysisId}.pdf`;
+    if (!fs.existsSync(pdfPath)) {
+      res.status(404).json({ error: 'Report file not found' });
+      return;
+    }
+
+    // Read and return the PDF file
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=website_analysis_${analysisId.substring(0, 8)}.pdf`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    
+    res.status(200).send(pdfBuffer);
 
   } catch (error) {
     console.error('Error in download endpoint:', error);

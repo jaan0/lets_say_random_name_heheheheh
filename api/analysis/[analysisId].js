@@ -1,3 +1,5 @@
+import AnalysisStorage from '../../../lib/storage.js';
+
 export default function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,24 +26,16 @@ export default function handler(req, res) {
       return;
     }
 
-    // For now, return a mock result
-    // In a real implementation, you would retrieve this from a database
-    const mockResult = {
-      id: analysisId,
-      url: 'https://example.com',
-      status: 'completed',
-      started_at: new Date().toISOString(),
-      progress: 100,
-      results: {
-        overall_score: 85,
-        performance: { score: 80 },
-        accessibility: { score: 90 },
-        seo: { score: 85 }
-      },
-      error: null
-    };
+    // Get analysis result from storage
+    const storage = new AnalysisStorage();
+    const result = storage.getAnalysisResult(analysisId);
 
-    res.status(200).json(mockResult);
+    if (!result) {
+      res.status(404).json({ error: 'Analysis not found' });
+      return;
+    }
+
+    res.status(200).json(result);
 
   } catch (error) {
     console.error('Error in analysis status endpoint:', error);
