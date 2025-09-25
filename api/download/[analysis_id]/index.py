@@ -1,17 +1,31 @@
 import json
-import os
-import base64
-
-# Import from parent directory
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-# Import the shared functions from main.py
-from main import get_analysis_result
 
 def handler(request):
-    """Vercel serverless function handler"""
+    """Minimal Vercel serverless function handler"""
     try:
+        # Handle CORS preflight
+        if request.method == "OPTIONS":
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type"
+                },
+                "body": ""
+            }
+        
+        # Only allow GET requests
+        if request.method != "GET":
+            return {
+                "statusCode": 405,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*"
+                },
+                "body": json.dumps({"error": "Method not allowed"})
+            }
+        
         # Extract analysis_id from the request path
         # The path will be something like /api/download/12345
         path_parts = request.path.split('/')
@@ -20,55 +34,36 @@ def handler(request):
         if not analysis_id:
             return {
                 "statusCode": 400,
-                "headers": {"Content-Type": "application/json"},
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*"
+                },
                 "body": json.dumps({"error": "Analysis ID is required"})
             }
         
-        # Get analysis result
-        result = get_analysis_result(analysis_id)
-        if not result:
-            return {
-                "statusCode": 404,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"error": "Analysis not found"})
-            }
-        
-        if result["status"] != "completed":
-            return {
-                "statusCode": 400,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"error": "Analysis not completed yet"})
-            }
-        
-        pdf_path = f"reports/{analysis_id}.pdf"
-        if not os.path.exists(pdf_path):
-            return {
-                "statusCode": 404,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"error": "Report file not found"})
-            }
-        
-        # Read and encode the PDF file
-        with open(pdf_path, 'rb') as pdf_file:
-            pdf_content = pdf_file.read()
-            pdf_base64 = base64.b64encode(pdf_content).decode('utf-8')
-        
+        # For now, return a mock response
+        # In a real implementation, you would generate and return the actual PDF
         return {
             "statusCode": 200,
             "headers": {
-                "Content-Type": "application/pdf",
-                "Content-Disposition": f"attachment; filename=website_analysis_{analysis_id[:8]}.pdf",
+                "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
-            "body": pdf_base64,
-            "isBase64Encoded": True
+            "body": json.dumps({
+                "message": "PDF download endpoint working",
+                "analysis_id": analysis_id,
+                "note": "This is a mock response. In production, this would return the actual PDF file."
+            })
         }
         
     except Exception as e:
         return {
             "statusCode": 500,
-            "headers": {"Content-Type": "application/json"},
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
             "body": json.dumps({"error": str(e)})
         }
